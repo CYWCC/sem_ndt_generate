@@ -103,40 +103,24 @@ def downsample_point_cloud(xyz, voxel_size=0.05):
 
     return pcd_ds.points, inv_ids
 
-# def find_neighbors_in_radius(xyz, voxel_size=0.05):
-#     pcd = o3d.geometry.PointCloud()
-#     pcd.points = o3d.utility.Vector3dVector(xyz)
-#     pcd_tree = o3d.geometry.KDTreeFlann(pcd)
-#     [k, idx, _] = pcd_tree.search_knn_vector_3d(pcd.points[1500], )
-#     # 该函数search_knn_vector_3d返回点的k个最近邻居的索引列表
-#
-#     [k, idx, _] = pcd_tree.search_radius_vector_3d(pcd.points[1500], 0.2
-#     clean_xyz
-#
-#     return pcd_ds.points, inv_ids
-
 def mutual_info(cell, cell_list):
-    cell_mut_info = []
-
-    # x = [0, 0.3, 0, 0.7]
-    # y = [0, 0.4, 0, 0.6]
-    # a = scipy.stats.entropy(x, y)
-    range = np.max(cell) - np.min(cell)
-    cell = (cell - np.min(cell)) / range
+    # eps = np.finfo(cell.dtype).eps
+    cell = (cell - np.min(cell)) / (np.max(cell) - np.min(cell))
     # cell = cell / np.sum(cell)
+    min_mut = float("inf")
+    cell_idx = 0
 
     for cell_i in cell_list[1:]:
-
-        range = np.max(cell_i) - np.min(cell_i)
-        cell_i = (cell_i - np.min(cell_i)) / range
+        cell_idx += 1
+        cell_i = (cell_i - np.min(cell_i)) / (np.max(cell_i) - np.min(cell_i))
         # cell_i = cell_i / np.sum(cell_i)
+
         KL1 = scipy.stats.entropy(cell, cell_i)
         kl2 = scipy.stats.entropy(cell_i, cell)
-        mut_info = 0.5*(KL1+kl2)
+        mut_info = 0.5 * (KL1 + kl2)
 
-        # M = (cell + cell_i) / 2
-        # mut_info = 0.5 * scipy.stats.entropy(cell, M) + 0.5 * scipy.stats.entropy(cell_i, M)
-        cell_mut_info.append(mut_info)
-    min_val = min(cell_mut_info)
-    min_val_index = cell_mut_info.index(min_val)+1
-    return min_val, min_val_index
+        if mut_info <= min_mut:
+            min_mut = mut_info
+            min_val_index = cell_idx
+
+    return min_mut, min_val_index
