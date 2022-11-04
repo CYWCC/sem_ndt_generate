@@ -8,8 +8,8 @@ semantic ='labels'
 laser='velodyne' # lms_front 、lms_rear
 laser_dir= path+laser+'/'
 label_dir = path+semantic+'/'
-pc_output_folder='NDT_cells_1102/'
-label_output_folder = 'cells_labels_1102/'
+pc_output_folder='NDT_cells_1104/'
+label_output_folder = 'cells_labels_1104/'
 
 #pc output forder
 out_pc_dir = path + pc_output_folder
@@ -38,6 +38,7 @@ for i in tqdm.tqdm(range(scan_num)):
     scan1 = np.fromfile(scan_path, dtype=np.float32)
     scan = scan1.reshape((-1, 4))
     scan_xyz = scan[:, 0:3]
+
     # scan_xyz4 = np.append(scan_xyz, np.ones((len(scan_xyz), 1)), axis=1)
 
     # semantic labels #
@@ -54,11 +55,25 @@ for i in tqdm.tqdm(range(scan_num)):
 
     # dowsampling
     voxel_xyz = clean_xyz
-    vox_sz = 1.001
+    # vox_sz = 1.001
 
-    while len(voxel_xyz) > target_tolerance_size:
-        voxel_xyz, inv_ids = downsample_point_cloud(clean_xyz, vox_sz)
-        vox_sz += 0.01
+    # voxel size查找
+    left = 0.5
+    right = 2.5
+    while left < right:
+        mid = (left + right)/2
+        voxel_xyz, inv_ids = downsample_point_cloud(clean_xyz, mid)
+        if len(voxel_xyz) > target_tolerance_size+100:
+            left = mid
+        elif len(voxel_xyz) < target_tolerance_size-100:
+            right = mid
+        else:
+            vox_sz = mid
+            break
+
+    # while len(voxel_xyz) > target_tolerance_size:
+    #     voxel_xyz, inv_ids = downsample_point_cloud(clean_xyz, vox_sz)
+    #     vox_sz += 0.01
 
     # NDT representation
     pcd1 = o3d.geometry.PointCloud()
@@ -73,7 +88,7 @@ for i in tqdm.tqdm(range(scan_num)):
             voxel_indx.append(center_id)
 
     while len(voxel_indx) < target_cell_size:
-        vox_sz -= 0.005
+        vox_sz -= 0.01
         voxel_xyz, inv_ids = downsample_point_cloud(clean_xyz, vox_sz)
         voxel_indx = []
         for center_id in inv_ids:
@@ -88,7 +103,6 @@ for i in tqdm.tqdm(range(scan_num)):
             [k, idx, _] = pcd_tree1.search_radius_vector_3d(pcd1.points[voxel_i], r)
             # ndt
             cell_points = clean_xyz[idx, :]
-            cell_points_1 = cell_points[0]
             cell_mean = np.mean(cell_points, axis=0)
             cell_var = (np.cov(cell_points.T)).flatten()
             cell_ndt = np.concatenate((cell_mean, cell_var), axis=0)
@@ -138,12 +152,6 @@ for i in tqdm.tqdm(range(scan_num)):
     # pcd1 = o3d.geometry.PointCloud()
     # pcd1.points = o3d.utility.Vector3dVector(target_NDT_cells[:,:3])
     # o3d.visualization.draw_geometries([pcd1])
-
-
-
-
-
-
 
 
 
